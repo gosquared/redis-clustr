@@ -44,6 +44,7 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
   var cb = function(){};
 
   var keys = Array.prototype.slice.call(args);
+
   if (typeof keys[keys.length -1] === 'function') cb = keys.pop();
 
   var first = keys[0];
@@ -52,6 +53,19 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
   }
 
   var g = this.cluster.multipleKeys(keys, interval);
+
+  var todo = Object.keys(g).length;
+  var done = 0;
+  var resp = [];
+  var errors = null;
+  var isDone = function(err, res) {
+    if (err && !errors) errors = [];
+    if (err) errors.push(err);
+
+    resp.push(res);
+
+    if (++done === todo) return cb(errors, resp);
+  };
 
   for (var i in g) {
 
@@ -63,6 +77,8 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
     if (!this.splitCommands[this.queue.length]) this.splitCommands[this.queue.length] = {};
 
     this.splitCommands[this.queue.length][i] = multi.queue.length;
+
+    g[i].push(isDone);
 
     multi[cmd].apply(multi, g[i]);
   }

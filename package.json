@@ -1,6 +1,6 @@
 {
   "name": "redis-clustr",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A poor man's redis cluster client",
   "main": "index.js",
   "scripts": {
