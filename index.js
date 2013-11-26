@@ -39,6 +39,7 @@ var RedisClustr = module.exports = function(config) {
 setupCommands(RedisClustr);
 
 RedisClustr.prototype.selectClient = function(key) {
+  if (Array.isArray(key)) key = key[0];
   var slot = crc16(key);
 
   for (var i in this.clients) {

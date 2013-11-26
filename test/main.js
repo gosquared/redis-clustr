@@ -51,12 +51,15 @@ m.del('hi','hello','one','two', function() {
 
 m.get('hello', function() {
   console.log(arguments[1]);
-})
+});
+
+m.zadd(['key', 1, 'a', 2, 'b'], function(){ console.log('multizadd', arguments); });
 
 m.exec(function(err, res) {
   console.log('multi complete', res);
 });
 
+c.zadd(['key2', 1, 'a'], function() { console.log('nomulti zadd', arguments); });
 
 c.del(['hi','hello','oi','wtf'], function() {
   console.log("multi del", arguments);
