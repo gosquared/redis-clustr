@@ -90,6 +90,9 @@ RedisMulti.prototype.exec = function(cb) {
   var self = this;
 
   var q = this.queue;
+
+  if (!q.length) return setImmediate(function() { cb(null); });
+
   var resp = new Array(q.length);
 
   var todo = Object.keys(this.queues).length;
