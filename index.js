@@ -77,9 +77,8 @@ RedisClustr.prototype.multiKeyCommand = function(cmd, interval, args) {
   var g = this.multipleKeys(keys, interval);
 
   var todo = Object.keys(g).length;
-  var done = 0;
   var isDone = function() {
-    if (++done === todo) cb();
+    if (!--todo) cb();
   };
 
   for (var i in g) {
@@ -106,4 +105,14 @@ RedisClustr.prototype.multipleKeys = function(keys, interval) {
   }
 
   return groups;
+};
+
+RedisClustr.prototype.quit = function(cb) {
+  var todo = Object.keys(this.clients).length;
+
+  for (var i in this.clients) {
+    this.clients[i].client.quit(function() {
+      if (!--todo) cb();
+    });
+  }
 };

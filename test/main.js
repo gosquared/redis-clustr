@@ -64,3 +64,7 @@ c.zadd(['key2', 1, 'a'], function() { console.log('nomulti zadd', arguments); })
 c.del(['hi','hello','oi','wtf'], function() {
   console.log("multi del", arguments);
 });
+
+c.quit(function() {
+  console.log('QUIT');
+});
