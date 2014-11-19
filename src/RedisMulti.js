@@ -17,8 +17,6 @@ var RedisMulti = module.exports = function(cluster) {
   this.splitCommands = {};
 };
 
-setupCommands(RedisMulti);
-
 RedisMulti.prototype.command = function(cmd, args) {
 
   var key = args[0];
@@ -55,7 +53,6 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
   var g = this.cluster.multipleKeys(keys, interval);
 
   var todo = Object.keys(g).length;
-  var done = 0;
   var resp = [];
   var errors = null;
   var isDone = function(err, res) {
@@ -64,7 +61,7 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
 
     resp.push(res);
 
-    if (++done === todo) return cb(errors, resp);
+    if (!--todo) return cb(errors, resp);
   };
 
   for (var i in g) {
@@ -86,30 +83,30 @@ RedisMulti.prototype.multiKeyCommand = function(cmd, interval, args) {
   this.queue.push(this.queue.length);
 };
 
+setupCommands(RedisMulti);
+
 RedisMulti.prototype.exec = function(cb) {
-  var self = this;
+  if (!cb) cb = function(){};
 
   var q = this.queue;
-
   if (!q.length) return setImmediate(function() { cb(null); });
 
+  var errors = null;
   var resp = new Array(q.length);
-
   var todo = Object.keys(this.queues).length;
-  var done = 0;
-  var isDone = function(err) {
-    if (err) console.log(err);
-    if (++done !== todo) return;
 
-    // TODO: recompile split commands responses
-
-    if (cb) cb(null, resp);
-  }
+  var isDone = function() {
+    if (!--todo) return cb(errors, resp);
+  };
 
   function execQueue(queue) {
     queue.exec(function(err, res) {
-
-      if (err) return isDone(err);
+      if (err && !errors) errors = [];
+      if (err) {
+        errors.push(err);
+        isDone();
+        return;
+      }
 
       var qu = queue.queue;
 

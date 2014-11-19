@@ -4,7 +4,7 @@ var multiKeyCommands = require('../config/multiKeyCommands');
 module.exports = function(Class) {
   function setupCommand(cmd) {
 
-    if (multiKeyCommands[cmd]) {
+    if (multiKeyCommands[cmd] && Class.prototype.multiKeyCommand) {
       Class.prototype[cmd] = function() {
         this.multiKeyCommand.apply(this, [ cmd, multiKeyCommands[cmd] ].concat(arguments));
         return this;
