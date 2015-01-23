@@ -23,7 +23,7 @@ var RedisClustr = module.exports = function(config) {
 
     // no slots specified, automatically allocate evenly
     if (!slots) {
-      slots = [ i * 65536 / config.clients.length, (i + 1) * 65536 / config.clients.length ]
+      slots = [ i * 65536 / config.clients.length, (i + 1) * 65536 / config.clients.length ];
     }
 
     var name = c.name || c.host + ':' + c.port;
@@ -46,6 +46,9 @@ RedisClustr.prototype.selectClient = function(key) {
       return this.clients[i];
     }
   }
+
+  console.log(slot, this.clients);
+  process.exit();
 };
 
 RedisClustr.prototype.command = function(cmd, args) {
