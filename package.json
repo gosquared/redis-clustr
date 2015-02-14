@@ -1,16 +1,29 @@
 {
   "name": "redis-clustr",
-  "version": "0.1.1",
-  "description": "A poor man's redis cluster client",
-  "main": "index.js",
+  "version": "1.0.0-alpha",
+  "description": "Redis cluster client",
+  "main": "src/redisClustr.js",
+  "keywords": [
+    "redis",
+    "cluster",
+    "database"
+  ],
+  "bugs": {
+    "url": "https://github.com/gosquared/redis-clustr/issues"
+  },
+  "author": "Simon Tabor <me@simontabor.com> (http://simontabor.com/)",
+  "license": "MIT",
+  "repository": {
+    "type" : "git",
+    "url" : "git://github.com/gosquared/redis-clustr.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Simon Tabor",
-  "license": "MIT",
   "dependencies": {
-    "crc": "~0.2.1",
-    "hiredis": "^0.1.17",
     "redis": "^0.12.1"
+  },
+  "optionalDependencies": {
+    "hiredis": "^0.2.0"
   }
 }

@@ -1,4 +1,4 @@
-var setupCommands = require('../src/setupCommands');
+var setupCommands = require('./setupCommands');
 
 /*
 Like a multi but without using the MULTI command itself, so it's useful
@@ -6,21 +6,25 @@ for batching commands into a single callback
 */
 
 var RedisBatch = module.exports = function(cluster) {
-  this.cluster = cluster;
-  this.queue = [];
+  var self = this;
+  self.cluster = cluster;
+  self.queue = [];
 };
 
 RedisBatch.prototype.command = function(cmd, args) {
-  this.queue.push([ cmd, args ]);
+  var self = this;
+  self.queue.push([ cmd, args ]);
 };
 
 setupCommands(RedisBatch);
 
 RedisBatch.prototype.exec = function(cb) {
+  var self = this;
+
   if (!cb) cb = function(){};
 
-  var todo = this.queue.length;
-  var resp = new Array(this.queue.length);
+  var todo = self.queue.length;
+  var resp = new Array(self.queue.length);
   var errors = null;
 
   if (!todo) return setImmediate(function() { cb(null); });
@@ -29,8 +33,8 @@ RedisBatch.prototype.exec = function(cb) {
     if (!--todo) return cb(errors, resp);
   };
 
-  this.queue.forEach(function(op, index) {
-    var cmd = this.cluster[op[0]];
+  self.queue.forEach(function(op, index) {
+    var cmd = self.cluster[op[0]];
     var keys = Array.prototype.slice.call(op[1]);
 
     var cb = false;
@@ -43,12 +47,14 @@ RedisBatch.prototype.exec = function(cb) {
 
     keys.push(function(err, res) {
       if (cb) cb.apply(this, arguments);
-      if (err && !errors) errors = [];
-      if (err) errors.push(err);
+      if (err) {
+        if (!errors) errors = [];
+        errors.push(err);
+      }
       resp[index] = res;
       isDone();
     });
 
-    cmd.apply(this.cluster, keys);
-  }.bind(this));
+    cmd.apply(self.cluster, keys);
+  });
 };
