@@ -140,7 +140,7 @@ RedisClustr.prototype.command = function(cmd, args) {
       // REQUERY THE NEW ONE (we've got the correct details)
       var addr = err.message.split(' ')[2];
       var saddr = addr.split(':')
-      var c = self.createClient(saddr[1], saddr[0]);
+      var c = self.getClient(saddr[1], saddr[0]);
       c[cmd].apply(c, args);
       return;
     }
