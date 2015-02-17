@@ -126,6 +126,18 @@ RedisClustr.prototype.selectClient = function(key) {
 
   if (Array.isArray(key)) key = key[0];
 
+  // support for hash tags to keep keys on the same slot
+  // http://redis.io/topics/cluster-spec#multiple-keys-operations
+  var openKey = key.indexOf('{');
+  if (openKey !== -1) {
+    var closeKey = key.indexOf('}');
+
+    // } in key and it's not {}
+    if (closeKey !== -1 && closeKey !== openKey + 1) {
+      key = key.substring(openKey + 1, closeKey);
+    }
+  }
+
   var slot = crc(key) % 16384;
 
   for (var c in self.clients) {
