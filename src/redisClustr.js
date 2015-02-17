@@ -168,15 +168,20 @@ RedisClustr.prototype.command = function(cmd, args) {
 
   args.push(function(err) {
     if (err && err.message) {
-      if (err.message.substr(0, 6) === 'MOVED ') {
+      var moved = err.message.substr(0, 6) === 'MOVED ';
+      var ask = err.message.substr(0, 4) === 'ASK ';
+
+      if (moved || ask) {
+
         // key has been moved!
         // lets refetch slots from redis to get an up to date allocation
-        self.getSlots();
+        if (moved) self.getSlots();
 
         // REQUERY THE NEW ONE (we've got the correct details)
         var addr = err.message.split(' ')[2];
         var saddr = addr.split(':')
         var c = self.getClient(saddr[1], saddr[0]);
+        if (ask) c.send_command('asking');
         c[cmd].apply(c, args);
         return;
       }
