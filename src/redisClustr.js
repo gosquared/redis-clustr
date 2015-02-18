@@ -67,58 +67,62 @@ RedisClustr.prototype.getClient = function(port, host) {
   return self.connections[name] = cli;
 };
 
-RedisClustr.prototype.getSlots = function(clientIndex) {
+RedisClustr.prototype.getSlots = function(cb) {
   var self = this;
 
-  if (self.slotting) return;
-  self.slotting = true;
+  var alreadyRunning = !!self._slotQ;
+  if (!alreadyRunning) self._slotQ = [];
+  if (cb) self._slotQ.push(cb);
+  if (alreadyRunning) return;
 
-  clientIndex = clientIndex || 0;
+  var runCbs = function() {
+    for (var i = 0; i < self._slotQ.length; i++) {
+      self._slotQ[i].apply(self._slotQ[i], arguments);
+    }
+    self._slotQ = false;
+  }
 
-  // get the client at the index we've been given (so we can iterate over clients if one/some are erroring)
-  self.clients[Object.keys(self.clients)[clientIndex]].client.send_command('cluster', [ 'slots' ], function(err, slots) {
-    if (err) {
-      clientIndex++;
+  var tryClient = function(index) {
+    if (index >= self.clients.length) return runCbs(new Error('couldn\'t get slot allocation'));
 
-      // we've run out of clients to try...
-      if (clientIndex >= self.clients.length) {
-        self.slotting = false;
-        self.emit('error', new Error('couldn\'t get slot allocation'));
-        return;
+    self.clients[Object.keys(self.clients)[index]].client.send_command('cluster', [ 'slots' ], function(err, slots) {
+      if (err) return tryClient(index++);
+
+      self.clients = {};
+
+      for (var i = 0; i < slots.length; i++) {
+        var s = slots[i];
+        var start = s[0];
+        var end = s[1];
+        var cli = s[2];
+        var name = s[2].join(':');
+
+        if (!self.clients[name]) {
+          self.clients[name] = {
+            name: name,
+            client: self.getClient(cli[1], cli[0]),
+            slots: []
+          };
+        }
+
+        // add this slot range to the client
+        self.clients[name].slots.push([ start, end ]);
       }
 
-      // try the next client
-      self.getSlots(clientIndex);
-      return;
-    }
-
-    self.clients = {};
-
-    for (var i = 0; i < slots.length; i++) {
-      var s = slots[i];
-      var start = s[0];
-      var end = s[1];
-      var cli = s[2];
-      var name = s[2].join(':');
-
-      if (!self.clients[name]) {
-        self.clients[name] = {
-          name: name,
-          client: self.getClient(cli[1], cli[0]),
-          slots: []
-        };
+      // quit now-unused clients
+      for (var i in self.connections) {
+        if (!self.connections[i]) continue;
+        if (!self.clients[i]) {
+          self.connections[i].quit();
+          self.connections[i] = null;
+        }
       }
 
-      // add this slot range to the client
-      self.clients[name].slots.push([ start, end ]);
-    }
+      runCbs(null, self.clients);
+    });
+  };
 
-    for (var i in self.connections) {
-      if (!self.clients[i]) self.connections[i].quit();
-    }
-
-    self.slotting = false;
-  });
+  tryClient(0);
 };
 
 RedisClustr.prototype.selectClient = function(key) {
@@ -181,7 +185,7 @@ RedisClustr.prototype.command = function(cmd, args) {
         var addr = err.message.split(' ')[2];
         var saddr = addr.split(':')
         var c = self.getClient(saddr[1], saddr[0]);
-        if (ask) c.send_command('asking');
+        if (ask) c.send_command('asking', []);
         c[cmd].apply(c, args);
         return;
       }
