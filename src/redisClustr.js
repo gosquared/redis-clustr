@@ -18,20 +18,14 @@ var RedisClustr = module.exports = function(config) {
   }
 
   self.config = config;
-  self.clients = {};
+  self.slots = [];
   self.connections = {};
 
   for (var i = 0; i < config.servers.length; i++) {
     var c = config.servers[i];
 
     var name = c.host + ':' + c.port;
-
-    self.clients[name] = {
-      name: name,
-      client: self.getClient(c.port, c.host),
-      // slots will be reassigned as soon as we get a response from `cluster slots`
-      slots: [ [ 0, Infinity ] ]
-    };
+    self.connections[name] = self.getClient(c.port, c.host);
   }
 
   // fetch slots from the cluster immediately to ensure slots are correct
@@ -67,6 +61,26 @@ RedisClustr.prototype.getClient = function(port, host) {
   return self.connections[name] = cli;
 };
 
+RedisClustr.prototype.getRandomConnection = function(exclude) {
+  var self = this;
+
+  var available = Object.keys(self.connections).filter(function(f) {
+    return f && (!exclude || exclude.indexOf(f) === -1);
+  });
+
+  // Fisher-Yates shuffle
+  var currentIndex = available.length;
+  while (currentIndex) {
+    var randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+    var tmp = available[currentIndex];
+    available[currentIndex] = available[randomIndex];
+    available[randomIndex] = tmp;
+  }
+
+  return self.connections[available[0]];
+};
+
 RedisClustr.prototype.getSlots = function(cb) {
   var self = this;
 
@@ -82,47 +96,48 @@ RedisClustr.prototype.getSlots = function(cb) {
     self._slotQ = false;
   }
 
-  var tryClient = function(index) {
-    if (index >= self.clients.length) return runCbs(new Error('couldn\'t get slot allocation'));
+  var exclude = [];
+  var tryClient = function() {
+    var cli = self.getRandomConnection(exclude);
+    if (!cli) return runCbs(new Error('couldn\'t get slot allocation'));
 
-    self.clients[Object.keys(self.clients)[index]].client.send_command('cluster', [ 'slots' ], function(err, slots) {
-      if (err) return tryClient(index++);
+    cli.send_command('cluster', [ 'slots' ], function(err, slots) {
+      if (err) {
+        // exclude this client from then next attempt
+        exclude.push(cli.address);
+        return tryClient();
+      }
 
-      self.clients = {};
+      var seenClients = [];
+      self.slots = new Array(16384);
 
       for (var i = 0; i < slots.length; i++) {
         var s = slots[i];
         var start = s[0];
         var end = s[1];
         var cli = s[2];
-        var name = s[2].join(':');
+        var name = cli.join(':');
+        seenClients.push(name);
 
-        if (!self.clients[name]) {
-          self.clients[name] = {
-            name: name,
-            client: self.getClient(cli[1], cli[0]),
-            slots: []
-          };
+        for (var j = start; j <= end; j++) {
+          self.slots[j] = self.getClient(cli[1], cli[0]);
         }
-
-        // add this slot range to the client
-        self.clients[name].slots.push([ start, end ]);
       }
 
       // quit now-unused clients
       for (var i in self.connections) {
         if (!self.connections[i]) continue;
-        if (!self.clients[i]) {
+        if (seenClients.indexOf(i) === -1) {
           self.connections[i].quit();
           self.connections[i] = null;
         }
       }
 
-      runCbs(null, self.clients);
+      runCbs(null, self.slots);
     });
   };
 
-  tryClient(0);
+  tryClient();
 };
 
 RedisClustr.prototype.selectClient = function(key) {
@@ -144,15 +159,8 @@ RedisClustr.prototype.selectClient = function(key) {
 
   var slot = crc(key) % 16384;
 
-  for (var c in self.clients) {
-    var client = self.clients[c];
-    for (var i = 0; i < client.slots.length; i++) {
-      var range = client.slots[i];
-      if (slot >= range[0] && slot <= range[1]) {
-        return client;
-      }
-    }
-  }
+  // get the redis client for this slot. if we haven't got one, try any connection
+  return self.slots[slot] || self.getRandomConnection();
 };
 
 RedisClustr.prototype.command = function(cmd, args) {
@@ -161,17 +169,21 @@ RedisClustr.prototype.command = function(cmd, args) {
   args = Array.prototype.slice.call(args);
   var key = args[0];
 
-  if (!key) {
-    throw new Error('no key for command: ' + cmd);
-  }
-
-  var r = self.selectClient(key);
-
   var cb = function(){};
   if (typeof args[args.length - 1] === 'function') cb = args.pop();
 
+  if (!key) return cb(new Error('no key for command: ' + cmd));
+
+  var r = self.selectClient(key);
+  if (!r) return cb(new Error('couldn\'t get client'));
+
+  // number of attempts/redirects when we get connection errors
+  // or when we get MOVED/ASK responses
+  // https://github.com/antirez/redis-rb-cluster/blob/fd931ed34dfc53159e2f52c9ea2d4a5073faabeb/cluster.rb#L29
+  var retries = 16;
+
   args.push(function(err) {
-    if (err && err.message) {
+    if (err && err.message && retries--) {
       var moved = err.message.substr(0, 6) === 'MOVED ';
       var ask = err.message.substr(0, 4) === 'ASK ';
 
@@ -191,15 +203,23 @@ RedisClustr.prototype.command = function(cmd, args) {
       }
 
       if (/Redis connection to .* failed.*/.test(err.message)) {
-        self.emit('connectionError', err, c);
-        self.getSlots();
+        self.emit('connectionError', err, r);
+
+        // get slots and try again
+        self.getSlots(function(err) {
+          if (err) return cb(err);
+          var r = self.selectClient(key);
+          if (!r) return cb(new Error('couldn\'t get client'));
+          r[cmd].apply(r, args);
+        });
+        return;
       }
     }
 
     cb.apply(cb, arguments);
   });
 
-  r.client[cmd].apply(r.client, args);
+  r[cmd].apply(r, args);
 };
 
 // redis cluster requires multi-key commands to be split into individual commands
@@ -242,8 +262,8 @@ RedisClustr.prototype.quit = function(cb) {
   var todo = Object.keys(self.connections).length;
 
   for (var i in self.connections) {
-    self.connections[i].client.quit(function() {
-      if (!--todo) cb();
+    self.connections[i].quit(function() {
+      if (!--todo && cb) cb();
     });
   }
 };
