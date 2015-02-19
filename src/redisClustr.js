@@ -98,13 +98,13 @@ RedisClustr.prototype.getSlots = function(cb) {
 
   var exclude = [];
   var tryClient = function() {
-    var cli = self.getRandomConnection(exclude);
-    if (!cli) return runCbs(new Error('couldn\'t get slot allocation'));
+    var client = self.getRandomConnection(exclude);
+    if (!client) return runCbs(new Error('couldn\'t get slot allocation'));
 
-    cli.send_command('cluster', [ 'slots' ], function(err, slots) {
+    client.send_command('cluster', [ 'slots' ], function(err, slots) {
       if (err) {
         // exclude this client from then next attempt
-        exclude.push(cli.address);
+        exclude.push(client.address);
         return tryClient();
       }
 
