@@ -48,7 +48,7 @@ var redis = new RedisCluster({
 
 ### Slot reallocation
 
-Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is currently ignored.
+Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we wil re-issue the command without updating the slots.
 
 ### Multi / Exec
 
