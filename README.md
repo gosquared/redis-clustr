@@ -1,7 +1,5 @@
 # redis-clustr
 
-> Note: This module is in beta - please be careful!
-
 This module is a relatively thin wrapper around the node redis client to enable use of [Redis Cluster](http://redis.io/topics/cluster-spec). It tries to be as unobtrusive as possible - mimicing the behaviour of the [node_redis](https://github.com/mranney/node_redis) client.
 
 
