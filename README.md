@@ -1,80 +1,59 @@
 # redis-clustr
 
-This module is a relatively thin wrapper around the node redis client to enable use of a CRC16-based redis hashring.
+> Note: This module is in beta - please be careful!
 
-It tries to be as unobtrusive as possible - mimicing the behaviour of the core redis client. Multi commands are *supported* but not as complete transactions, instead the commands are split into a multi for each node in the cluster which is then executed in parallel and the response is recreated in the original order. Multi-key commands (such as del('hello', 'hello2') etc) are also supported and will be grouped into the relevant commands for each node.
+This module is a relatively thin wrapper around the node redis client to enable use of [Redis Cluster](http://redis.io/topics/cluster-spec). It tries to be as unobtrusive as possible - mimicing the behaviour of the [node_redis](https://github.com/mranney/node_redis) client.
+
 
 ## Usage
 
-Unless slots are specified, each node will be allocated an equal section of slots (0 - 65535). The order of the clients is **essential** if no slots are specified.
-
-### Basic
 
 ```javascript
 var RedisCluster = require('redis-clustr');
 
-var redis = new RedisCluster([
-  {
-    host: 'localhost',
-    port: 6380
-  },
-  {
-    host: 'localhost',
-    port: 6381
-  },
-  {
-    host: 'localhost',
-    port: 6382
-  }
-]);
-
-// lets start using the cluster!
-redis.set('test', 'value');
-
-var multi = redis.multi();
-
-multi.get('test', function(err, res) {
-  // null, 'value'
+var redis = new RedisCluster({
+  servers: [
+    {
+      host: '127.0.0.1',
+      port: 7000
+    }
+  ]
 });
 
-multi.set('test2', 'value2');
-
-multi.del('test', 'test2', function(err) {
-  // responses for multi key commands are *not* 100% reliable
-});
-
-multi.exec(function(err, res) {
-  console.log(err, res);
-});
-
+redis.set('key', 'value');
 ```
 
-### Advanced
+### Servers
 
-Slot ranges can be manually specified, as can redis clients to use (`client` rather than `host` and `port`). Note: if a client is specified, a `name` **must** be specified.
+Servers in the cluster will be automatically connected to (via the response of `cluster slots`). Of course, to allow discovery there must be at least one server specified in the configuration.
+
+### Client creation
+
+By default, clients will be created using `Redis.createClient(port, host)`. This can be overridden by providing a function which *must* return a [node_redis](https://github.com/mranney/node_redis) client. Clients are cached so only one connection will be made to each server.
 
 ```javascript
 var RedisCluster = require('redis-clustr');
-var Redis = require('redis');
-
-var redis = new RedisCluster([
-  {
-    name: 'tiny-client'
-    client: Redis.createClient(6380, 'localhost'),
-    slots: [ 0, 100 ]
-  },
-  {
-    name: 'little',
-    client: Redis.createClient(6381, 'localhost'),
-    slots: [ 101, 5000 ]
-  },
-  {
-    name: 'huge-client',
-    client: Redis.createClient(6382, 'localhost'),
-    slots: [ 5001, 65535 ]
+var RedisClient = require('redis');
+var redis = new RedisCluster({
+  servers: [...],
+  createClient: function(port, host) {
+    // this is the default behaviour
+    return RedisClient.createClient(port, host);
   }
-]);
-
-// etc etc
-
+});
 ```
+
+
+## Supported functionality/limitations
+
+### Slot reallocation
+
+Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we wil re-issue the command without updating the slots.
+
+### Multi / Exec
+
+Multi commands are *supported* but treated as a batch of commands (not an actual multi) and the response is recreated in the original order.
+
+### Multi-key commands (`del`, `mget`)
+
+Multi-key commands are also supported and will split into individual commands then have the response recreated as an array. This means that `del` will get a response of `[ 1, 1 ]`  when deleting two keys instead of `2`.
