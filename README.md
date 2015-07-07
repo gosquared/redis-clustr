@@ -1,6 +1,7 @@
 # redis-clustr
 
 [![Dependencies](https://david-dm.org/gosquared/redis-clustr.svg)](https://david-dm.org/gosquared/redis-clustr)
+[![Join the chat at https://gitter.im/gosquared/redis-clustr](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/gosquared/redis-clustr)
 
 [![NPM](https://nodei.co/npm/redis-clustr.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/redis-clustr)
 
