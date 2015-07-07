@@ -1,5 +1,9 @@
 # redis-clustr
 
+[![Dependencies](https://david-dm.org/gosquared/redis-clustr.svg)](https://david-dm.org/gosquared/redis-clustr)
+
+[![NPM](https://nodei.co/npm/redis-clustr.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/redis-clustr)
+
 This module is a relatively thin wrapper around the node redis client to enable use of [Redis Cluster](http://redis.io/topics/cluster-spec). It tries to be as unobtrusive as possible - mimicing the behaviour of the [node_redis](https://github.com/mranney/node_redis) client.
 
 
