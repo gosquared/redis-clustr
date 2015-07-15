@@ -1,6 +1,6 @@
 {
   "name": "redis-clustr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Redis cluster client",
   "main": "src/redisClustr.js",
   "keywords": [
@@ -24,6 +24,6 @@
     "redis": "^0.12.1"
   },
   "optionalDependencies": {
-    "hiredis": "^0.2.0"
+    "hiredis": "^0.4.0"
   }
 }
