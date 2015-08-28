@@ -68,17 +68,8 @@ RedisClustr.prototype.getRandomConnection = function(exclude) {
     return f && (!exclude || exclude.indexOf(f) === -1);
   });
 
-  // Fisher-Yates shuffle
-  var currentIndex = available.length;
-  while (currentIndex) {
-    var randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-    var tmp = available[currentIndex];
-    available[currentIndex] = available[randomIndex];
-    available[randomIndex] = tmp;
-  }
-
-  return self.connections[available[0]];
+  var randomIndex = Math.floor(Math.random() * available.length);
+  return self.connections[available[randomIndex]];
 };
 
 RedisClustr.prototype.getSlots = function(cb) {
