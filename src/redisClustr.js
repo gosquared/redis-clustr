@@ -135,6 +135,7 @@ RedisClustr.prototype.selectClient = function(key) {
   var self = this;
 
   if (Array.isArray(key)) key = key[0];
+  if (Buffer.isBuffer(key)) key = key.toString();
 
   // support for hash tags to keep keys on the same slot
   // http://redis.io/topics/cluster-spec#multiple-keys-operations
