@@ -48,7 +48,13 @@ RedisClustr.prototype.getClient = function(port, host) {
   var cli = createClient(port, host, self.config.redisOptions);
 
   cli.on('error', function(err) {
-    if (/Redis connection to .* failed.*/.test(err.message)) {
+    if (
+      err.code === 'CONNECTION_BROKEN' ||
+      err.code === 'UNCERTAIN_STATE' ||
+      /Redis connection to .* failed.*/.test(err.message)
+    ) {
+      // broken connection so force a new client to be created, otherwise node_redis will reconnect
+      if (err.code === 'CONNECTION_BROKEN') self.connections[name] = null;
       self.emit('connectionError', err, cli);
       self.getSlots();
       return;
@@ -58,7 +64,8 @@ RedisClustr.prototype.getClient = function(port, host) {
     self.emit('error', err, cli);
   });
 
-  return self.connections[name] = cli;
+  self.connections[name] = cli;
+  return cli;
 };
 
 RedisClustr.prototype.getRandomConnection = function(exclude) {
@@ -85,10 +92,12 @@ RedisClustr.prototype.getSlots = function(cb) {
       self._slotQ[i].apply(self._slotQ[i], arguments);
     }
     self._slotQ = false;
-  }
+  };
 
   var exclude = [];
   var tryClient = function() {
+    if (self.quitting) return runCbs(new Error('cluster is quitting'));
+
     var client = self.getRandomConnection(exclude);
     if (!client) return runCbs(new Error('couldn\'t get slot allocation'));
 
@@ -135,16 +144,18 @@ RedisClustr.prototype.selectClient = function(key) {
   var self = this;
 
   if (Array.isArray(key)) key = key[0];
+  if (Buffer.isBuffer(key)) key = key.toString();
 
   // support for hash tags to keep keys on the same slot
-  // http://redis.io/topics/cluster-spec#multiple-keys-operations
+  // http://redis.io/topics/cluster-spec#keys-hash-tags
   var openKey = key.indexOf('{');
   if (openKey !== -1) {
-    var closeKey = key.indexOf('}');
+    var tmpKey = key.substring(openKey + 1);
+    var closeKey = tmpKey.indexOf('}');
 
     // } in key and it's not {}
-    if (closeKey !== -1 && closeKey !== openKey + 1) {
-      key = key.substring(openKey + 1, closeKey);
+    if (closeKey > 0) {
+      key = tmpKey.substring(0, closeKey);
     }
   }
 
@@ -160,13 +171,37 @@ RedisClustr.prototype.command = function(cmd, args) {
   args = Array.prototype.slice.call(args);
   var key = args[0];
 
-  var cb = function(){};
-  if (typeof args[args.length - 1] === 'function') cb = args.pop();
+  var cb = function(err) {
+    if (err) self.emit('error', err);
+  };
+
+  var argsCb = typeof args[args.length - 1] === 'function';
+  if (argsCb) {
+    cb = args[args.length - 1];
+  }
 
   if (!key) return cb(new Error('no key for command: ' + cmd));
 
+  if (!self.slots.length) {
+    self.getSlots(function(err) {
+      if (err) return cb(err);
+      self.command(cmd, args);
+    });
+    return;
+  }
+
+  // now take cb off args so we can attach our own callback wrapper
+  if (argsCb) args.pop();
+
   var r = self.selectClient(key);
   if (!r) return cb(new Error('couldn\'t get client'));
+
+  self.commandCallback(r, cmd, args, cb);
+  r[cmd].apply(r, args);
+};
+
+RedisClustr.prototype.commandCallback = function(cli, cmd, args, cb) {
+  var self = this;
 
   // number of attempts/redirects when we get connection errors
   // or when we get MOVED/ASK responses
@@ -175,52 +210,48 @@ RedisClustr.prototype.command = function(cmd, args) {
 
   args.push(function(err) {
     if (err && err.message && retries--) {
-      var moved = err.message.substr(0, 6) === 'MOVED ';
-      var ask = err.message.substr(0, 4) === 'ASK ';
+      var msg = err.message;
+      var ask = msg.substr(0, 4) === 'ASK ';
+      var moved = !ask && msg.substr(0, 6) === 'MOVED ';
 
       if (moved || ask) {
-
         // key has been moved!
         // lets refetch slots from redis to get an up to date allocation
         if (moved) self.getSlots();
 
         // REQUERY THE NEW ONE (we've got the correct details)
         var addr = err.message.split(' ')[2];
-        var saddr = addr.split(':')
+        var saddr = addr.split(':');
         var c = self.getClient(saddr[1], saddr[0]);
         if (ask) c.send_command('asking', []);
         c[cmd].apply(c, args);
         return;
       }
 
-      if (/Redis connection to .* failed.*/.test(err.message)) {
-        self.emit('connectionError', err, r);
-
-        // get slots and try again
-        self.getSlots(function(err) {
-          if (err) return cb(err);
-          var r = self.selectClient(key);
-          if (!r) return cb(new Error('couldn\'t get client'));
-          r[cmd].apply(r, args);
-        });
+      var tryAgain = msg.substr(0, 8) === 'TRYAGAIN';
+      if (tryAgain || err.code === 'CLUSTERDOWN') {
+        // TRYAGAIN response or cluster down, retry with backoff up to 1280ms
+        setTimeout(function() {
+          cli[cmd].apply(cli, args);
+        }, Math.pow(2, 16 - Math.max(retries, 9)) * 10);
         return;
       }
     }
 
     cb.apply(cb, arguments);
   });
-
-  r[cmd].apply(r, args);
 };
 
 // redis cluster requires multi-key commands to be split into individual commands
 RedisClustr.prototype.multiKeyCommand = function(cmd, interval, args) {
   var self = this;
 
-  var cb = function(){};
+  var cb = function(err) {
+    if (err) self.emit('error', err);
+  };
 
   var keys = Array.prototype.slice.call(args);
-  if (typeof keys[keys.length -1] === 'function') cb = keys.pop();
+  if (typeof keys[keys.length - 1] === 'function') cb = keys.pop();
 
   var first = keys[0];
   if (Array.isArray(first)) {
@@ -251,10 +282,14 @@ RedisClustr.prototype.batch = RedisClustr.prototype.multi = function() {
 RedisClustr.prototype.quit = function(cb) {
   var self = this;
   var todo = Object.keys(self.connections).length;
+  self.quitting = true;
 
-  for (var i in self.connections) {
-    self.connections[i].quit(function() {
-      if (!--todo && cb) cb();
-    });
-  }
+  var errs = null;
+  var quitCb = function(err) {
+    if (err && !errs) errs = [];
+    if (err) errs.push(err);
+    if (!--todo && cb) cb(errs);
+  };
+
+  for (var i in self.connections) self.connections[i].quit(quitCb);
 };

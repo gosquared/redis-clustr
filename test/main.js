@@ -1,8 +1,8 @@
 // not really tests but being used to ensure things are working
-var RedisClustr = require('../index');
+var RedisClustr = require('../src/redisClustr');
 
 var c = new RedisClustr({
-  clients: [
+  servers: [
     {
       port: 6380,
       host: 'localhost'

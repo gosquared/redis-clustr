@@ -40,7 +40,7 @@ module.exports = function(s) {
   var buf = new Buffer(s);
 
   for (var i = 0; i < buf.length; i++) {
-    crc = ((crc<<8) & 0xffff) ^ lookup[((crc>>8)^buf[i]) & 0xff]
+    crc = ((crc << 8) & 0xffff) ^ lookup[((crc >> 8) ^ buf[i]) & 0xff];
   }
   return crc;
 };

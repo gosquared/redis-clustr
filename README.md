@@ -47,16 +47,20 @@ var redis = new RedisCluster({
 ```
 
 
-## Supported functionality/limitations
+## Supported functionality
 
 ### Slot reallocation
 
-Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we wil re-issue the command without updating the slots.
+Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we wil re-issue the command without updating the slots. `TRYAGAIN` responses will be retried automatically.
 
-### Multi / Exec
+### Multi / Exec (Batch)
 
-Multi commands are *supported* but treated as a batch of commands (not an actual multi) and the response is recreated in the original order.
+Multi commands are *supported* but treated as a batch of commands (not an actual multi) and the response is recreated in the original order. Commands are grouped by node and sent as [node_redis batches](https://github.com/NodeRedis/node_redis#clientbatchcommands)
 
 ### Multi-key commands (`del`, `mget`)
 
-Multi-key commands are also supported and will split into individual commands then have the response recreated as an array. This means that `del` will get a response of `[ 1, 1 ]`  when deleting two keys instead of `2`.
+Multi-key commands are also supported and will be split into individual commands (using a batch) then have the response recreated as an array. This means that `del` will get a response of `[ 1, 1 ]`  when deleting two keys instead of `2`.
+
+### Errors
+
+Just like node_redis, listen to the `error` event to stop your application from crashing due to errors. We automatically intercept connection errors and try to reconnect to the server.

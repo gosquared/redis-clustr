@@ -1,10 +1,10 @@
 // not really tests but being used to ensure things are working
-var RedisClustr = require('../index');
+var RedisClustr = require('../src/redisClustr');
 
 var c = new RedisClustr({
-  clients: [
+  servers: [
     {
-      port: 7000,
+      port: 7007,
       host: '127.0.0.1'
     },
     // {
@@ -35,19 +35,29 @@ var run = function() {
   b.get('hi' + runs);
   b.set('hi' + runs, runs);
   b.get('hi' + runs);
+  b.set('hi' + (runs + 1), runs);
   b.exec(function(err, resp) {
     console.log(err, resp);
-    c.del('hi' + (runs - 1));
+    c.del('hi' + (runs - 1), 'hi' + (runs - 2));
     runs++;
     run();
-  })
+  });
 };
 
+// c.getSlots(run);
 run();
 
+// setTimeout(function() {
+//   c.quit(function() {
+//     console.log('QUIIITTT', arguments);
+//   });
+// }, 1500);
 
-c.del('hi', 'test', 'lol', function() {
-  c.del('hi', 'test', 'lol', console.log);
-});
+c.on('error', console.log.bind(console, 'Error'));
+
+
+// c.del('hi', 'test', 'lol', function() {
+//   c.del('hi', 'test', 'lol', console.log);
+// });
 
 

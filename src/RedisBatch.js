@@ -21,7 +21,19 @@ setupCommands(RedisBatch);
 RedisBatch.prototype.exec = function(cb) {
   var self = this;
 
-  if (!cb) cb = function(){};
+  if (!cb) {
+    cb = function(err) {
+      if (err) self.cluster.emit('error', err);
+    };
+  }
+
+  if (!self.cluster.slots.length) {
+    self.cluster.getSlots(function(err) {
+      if (err) return cb(err);
+      self.exec(cb);
+    });
+    return;
+  }
 
   var todo = self.queue.length;
   var resp = new Array(self.queue.length);
@@ -33,20 +45,27 @@ RedisBatch.prototype.exec = function(cb) {
     if (!--todo) return cb(errors, resp);
   };
 
+  var batches = {};
+
   self.queue.forEach(function(op, index) {
-    var cmd = self.cluster[op[0]];
+    var cmd = op[0];
     var keys = Array.prototype.slice.call(op[1]);
 
-    var cb = false;
-    if (typeof keys[keys.length -1] === 'function') cb = keys.pop();
+    var cb = function(err) {
+      if (err) self.cluster.emit('error', err);
+    };
+    if (typeof keys[keys.length - 1] === 'function') cb = keys.pop();
 
     var first = keys[0];
     if (Array.isArray(first)) {
       keys = first;
     }
 
-    keys.push(function(err, res) {
-      if (cb) cb.apply(this, arguments);
+    var cli = self.cluster.selectClient(keys);
+    var b = batches[cli.address] || (batches[cli.address] = cli.batch());
+
+    self.cluster.commandCallback(cli, cmd, keys, function(err, res) {
+      cb.apply(this, arguments);
       if (err) {
         if (!errors) errors = [];
         errors.push(err);
@@ -55,6 +74,8 @@ RedisBatch.prototype.exec = function(cb) {
       isDone();
     });
 
-    cmd.apply(self.cluster, keys);
+    b[cmd].apply(b, keys);
   });
+
+  for (var i in batches) batches[i].exec();
 };
