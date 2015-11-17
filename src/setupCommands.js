@@ -17,9 +17,9 @@ module.exports = function(Class) {
       return this;
     };
     return;
-  };
+  }
 
   for (var i = 0; i < commands.length; i++) {
     setupCommand(commands[i].replace(/ /g, '_'));
   }
-}
+};

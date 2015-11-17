@@ -243,7 +243,7 @@ RedisClustr.prototype.commandCallback = function(cli, cmd, args, cb) {
 };
 
 // redis cluster requires multi-key commands to be split into individual commands
-RedisClustr.prototype.multiKeyCommand = function(cmd, interval, args) {
+RedisClustr.prototype.multiKeyCommand = function(cmd, conf, args) {
   var self = this;
 
   var cb = function(err) {
@@ -259,17 +259,20 @@ RedisClustr.prototype.multiKeyCommand = function(cmd, interval, args) {
   }
 
   // already split into an individual command
-  if (keys.length === interval) {
+  if (keys.length === conf.interval) {
     return self.command(cmd, args);
   }
 
   // batch the multi-key command into individual ones
   var b = self.batch();
-  for (var i = 0; i < keys.length; i += interval) {
-    b[cmd].apply(b, keys.slice(i, i + interval));
+  for (var i = 0; i < keys.length; i += conf.interval) {
+    b[cmd].apply(b, keys.slice(i, i + conf.interval));
   }
 
-  b.exec(cb);
+  b.exec(function(err, resp) {
+    if (resp) resp = conf.group(resp);
+    cb(err, resp);
+  });
 };
 
 setupCommands(RedisClustr);
