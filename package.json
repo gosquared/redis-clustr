@@ -21,6 +21,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "double-ended-queue": "^2.1.0-0",
     "redis": "^2.3.0"
   },
   "optionalDependencies": {

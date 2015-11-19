@@ -4,6 +4,7 @@ var redis = require('redis');
 var RedisBatch = require('./RedisBatch');
 var Events = require('events').EventEmitter;
 var util = require('util');
+var Queue = require('double-ended-queue');
 
 var RedisClustr = module.exports = function(config) {
   var self = this;
@@ -83,13 +84,14 @@ RedisClustr.prototype.getSlots = function(cb) {
   var self = this;
 
   var alreadyRunning = !!self._slotQ;
-  if (!alreadyRunning) self._slotQ = [];
+  if (!alreadyRunning) self._slotQ = new Queue();
   if (cb) self._slotQ.push(cb);
   if (alreadyRunning) return;
 
   var runCbs = function() {
-    for (var i = 0; i < self._slotQ.length; i++) {
-      self._slotQ[i].apply(self._slotQ[i], arguments);
+    var cb;
+    while ((cb = self._slotQ.shift())) {
+      cb.apply(cb, arguments);
     }
     self._slotQ = false;
   };
