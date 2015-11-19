@@ -32,7 +32,7 @@ var RedisClustr = module.exports = function(config) {
   self.getSlots();
 
   // ability to update slots on an interval (should be unnecessary)
-  if (config.slotInterval) setInterval(self.getSlots.bind(self), config.slotInterval);
+  if (config.slotInterval) self._slotInterval = setInterval(self.getSlots.bind(self), config.slotInterval);
 };
 
 util.inherits(RedisClustr, Events);
@@ -95,16 +95,23 @@ RedisClustr.prototype.getSlots = function(cb) {
   };
 
   var exclude = [];
+  var tryErrors = null;
   var tryClient = function() {
     if (self.quitting) return runCbs(new Error('cluster is quitting'));
 
     var client = self.getRandomConnection(exclude);
-    if (!client) return runCbs(new Error('couldn\'t get slot allocation'));
+    if (!client) {
+      var err = new Error('couldn\'t get slot allocation');
+      err.errors = tryErrors;
+      return runCbs(err);
+    }
 
     client.send_command('cluster', [ 'slots' ], function(err, slots) {
       if (err) {
         // exclude this client from then next attempt
         exclude.push(client.address);
+        if (!tryErrors) tryErrors = [];
+        tryErrors.push(err);
         return tryClient();
       }
 
@@ -286,6 +293,8 @@ RedisClustr.prototype.quit = function(cb) {
   var self = this;
   var todo = Object.keys(self.connections).length;
   self.quitting = true;
+
+  clearInterval(self._slotInterval);
 
   var errs = null;
   var quitCb = function(err) {
