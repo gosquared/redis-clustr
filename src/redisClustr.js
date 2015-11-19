@@ -4,6 +4,7 @@ var redis = require('redis');
 var RedisBatch = require('./RedisBatch');
 var Events = require('events').EventEmitter;
 var util = require('util');
+var Queue = require('double-ended-queue');
 
 var RedisClustr = module.exports = function(config) {
   var self = this;
@@ -20,6 +21,7 @@ var RedisClustr = module.exports = function(config) {
   self.config = config;
   self.slots = [];
   self.connections = {};
+  self.ready = false;
 
   for (var i = 0; i < config.servers.length; i++) {
     var c = config.servers[i];
@@ -32,7 +34,7 @@ var RedisClustr = module.exports = function(config) {
   self.getSlots();
 
   // ability to update slots on an interval (should be unnecessary)
-  if (config.slotInterval) setInterval(self.getSlots.bind(self), config.slotInterval);
+  if (config.slotInterval) self._slotInterval = setInterval(self.getSlots.bind(self), config.slotInterval);
 };
 
 util.inherits(RedisClustr, Events);
@@ -64,6 +66,31 @@ RedisClustr.prototype.getClient = function(port, host) {
     self.emit('error', err, cli);
   });
 
+  cli.on('ready', function() {
+    if (!self.ready) {
+      self.ready = true;
+      self.emit('ready');
+    }
+  });
+
+  cli.on('end', function() {
+    var wasReady = self.ready;
+    self.ready = Object.keys(self.connections).some(function(c) {
+      return self.connections[c] && self.connections[c].ready;
+    });
+    if (!self.ready && wasReady) self.emit('unready');
+
+    // setImmediate as node_redis sets emitted_end after emitting end
+    setImmediate(function() {
+      var wasEnded = self.ended;
+      self.ended = Object.keys(self.connections).every(function(c) {
+        var cc = self.connections[c];
+        return !cc || (!cc.connected && cc.emitted_end);
+      });
+      if (self.ended && !wasEnded) self.emit('end');
+    });
+  });
+
   self.connections[name] = cli;
   return cli;
 };
@@ -72,10 +99,11 @@ RedisClustr.prototype.getRandomConnection = function(exclude) {
   var self = this;
 
   var available = Object.keys(self.connections).filter(function(f) {
-    return f && (!exclude || exclude.indexOf(f) === -1);
+    return f && self.connections[f] && self.connections[f].ready && (!exclude || exclude.indexOf(f) === -1);
   });
 
   var randomIndex = Math.floor(Math.random() * available.length);
+
   return self.connections[available[randomIndex]];
 };
 
@@ -83,33 +111,54 @@ RedisClustr.prototype.getSlots = function(cb) {
   var self = this;
 
   var alreadyRunning = !!self._slotQ;
-  if (!alreadyRunning) self._slotQ = [];
-  if (cb) self._slotQ.push(cb);
+  if (!alreadyRunning) self._slotQ = new Queue(self.config.maxQueueLength || 16);
+  if (cb) {
+    if (self.config.maxQueueLength && self.config.maxQueueLength === self._slotQ.length) {
+      var err = new Error('max slot queue length reached');
+      if (self.config.queueShift !== false) {
+        // shift the earliest queue item off and give it an error
+        self._slotQ.shift()(err);
+      } else {
+        // send this callback the error instead
+        return cb(err);
+      }
+    }
+    self._slotQ.push(cb);
+  }
   if (alreadyRunning) return;
 
   var runCbs = function() {
-    for (var i = 0; i < self._slotQ.length; i++) {
-      self._slotQ[i].apply(self._slotQ[i], arguments);
+    var cb;
+    while ((cb = self._slotQ.shift())) {
+      cb.apply(cb, arguments);
     }
     self._slotQ = false;
   };
 
   var exclude = [];
+  var tryErrors = null;
   var tryClient = function() {
+    if (typeof readyTimeout !== 'undefined') clearTimeout(readyTimeout);
     if (self.quitting) return runCbs(new Error('cluster is quitting'));
 
     var client = self.getRandomConnection(exclude);
-    if (!client) return runCbs(new Error('couldn\'t get slot allocation'));
+    if (!client) {
+      var err = new Error('couldn\'t get slot allocation');
+      err.errors = tryErrors;
+      return runCbs(err);
+    }
 
     client.send_command('cluster', [ 'slots' ], function(err, slots) {
       if (err) {
         // exclude this client from then next attempt
         exclude.push(client.address);
+        if (!tryErrors) tryErrors = [];
+        tryErrors.push(err);
         return tryClient();
       }
 
       var seenClients = [];
-      self.slots = new Array(16384);
+      self.slots = [];
 
       for (var i = 0; i < slots.length; i++) {
         var s = slots[i];
@@ -137,7 +186,17 @@ RedisClustr.prototype.getSlots = function(cb) {
     });
   };
 
-  tryClient();
+  if (self.ready || self.quitting) return tryClient();
+
+  self.once('ready', tryClient);
+
+  // don't set a timeout (wait indefinitely for connection)
+  if (!self.config.readyTimeout) return;
+
+  var readyTimeout = setTimeout(function() {
+    self.removeListener('ready', tryClient);
+    runCbs(new Error('ready timeout reached'));
+  }, self.config.readyTimeout);
 };
 
 RedisClustr.prototype.selectClient = function(key) {
@@ -286,6 +345,8 @@ RedisClustr.prototype.quit = function(cb) {
   var self = this;
   var todo = Object.keys(self.connections).length;
   self.quitting = true;
+
+  clearInterval(self._slotInterval);
 
   var errs = null;
   var quitCb = function(err) {
