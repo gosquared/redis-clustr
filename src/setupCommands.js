@@ -2,24 +2,21 @@ var commands = require('../config/commands');
 var multiKeyCommands = require('../config/multiKeyCommands');
 
 module.exports = function(Class) {
-  function setupCommand(cmd) {
-
-    if (multiKeyCommands[cmd] && Class.prototype.multiKeyCommand) {
+  function setupCommand(cmd, conf) {
+    if (multiKeyCommands[cmd] && Class.prototype.doMultiKeyCommand) {
       Class.prototype[cmd] = function() {
-        this.multiKeyCommand.apply(this, [ cmd, multiKeyCommands[cmd] ].concat(arguments));
+        this.doMultiKeyCommand(cmd, conf, multiKeyCommands[cmd], arguments);
         return this;
       };
-      return;
+    } else {
+      Class.prototype[cmd] = function() {
+        this.doCommand(cmd, conf, arguments);
+        return this;
+     };
     }
-
-    Class.prototype[cmd] = function() {
-      this.command(cmd, arguments);
-      return this;
-    };
-    return;
   }
 
-  for (var i = 0; i < commands.length; i++) {
-    setupCommand(commands[i].replace(/ /g, '_'));
+  for (var i in commands) {
+    setupCommand(i, commands[i]);
   }
 };

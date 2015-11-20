@@ -124,12 +124,15 @@ RedisClustr.prototype.getSlots = function(cb) {
         var s = slots[i];
         var start = s[0];
         var end = s[1];
-        var cli = s[2];
-        var name = cli.join(':');
-        seenClients.push(name);
+
+        // array of all clients, clients[0] = master, others are slaves
+        var clients = s.slice(2).map(function(c) {
+          seenClients.push(c.join(':'));
+          return self.getClient(c[1], c[0]);
+        });
 
         for (var j = start; j <= end; j++) {
-          self.slots[j] = self.getClient(cli[1], cli[0]);
+          self.slots[j] = clients;
         }
       }
 
@@ -149,7 +152,7 @@ RedisClustr.prototype.getSlots = function(cb) {
   tryClient();
 };
 
-RedisClustr.prototype.selectClient = function(key) {
+RedisClustr.prototype.selectClient = function(key, conf) {
   var self = this;
 
   if (Array.isArray(key)) key = key[0];
@@ -170,11 +173,39 @@ RedisClustr.prototype.selectClient = function(key) {
 
   var slot = crc(key) % 16384;
 
-  // get the redis client for this slot. if we haven't got one, try any connection
-  return self.slots[slot] || self.getRandomConnection();
+  var clients = self.slots[slot];
+
+  // if we haven't got config for this slot, try any connection
+  if (!clients || !clients.length) return self.getRandomConnection();
+
+  var index = 0;
+
+  // always, never, share
+  if (conf.readOnly && self.config.slaves && self.config.slaves !== 'never' && clients.length > 1) {
+    // always use a slave for read commands
+    if (self.config.slaves === 'always') {
+      index = Math.floor(Math.random() * (clients.length - 1)) + 1;
+    }
+    // share read commands across master + slaves
+    if (self.config.slaves === 'share') {
+      index = Math.floor(Math.random() * clients.length);
+    }
+  }
+
+  var cli = clients[index];
+  if (index === 0 && cli.readOnly) {
+    cli.send_command('readwrite', []);
+    cli.readOnly = false;
+  }
+  if (index > 0 && !cli.readOnly) {
+    cli.send_command('readonly', []);
+    cli.readOnly = true;
+  }
+
+  return cli;
 };
 
-RedisClustr.prototype.command = function(cmd, args) {
+RedisClustr.prototype.doCommand = function(cmd, conf, args) {
   var self = this;
 
   args = Array.prototype.slice.call(args);
@@ -194,7 +225,7 @@ RedisClustr.prototype.command = function(cmd, args) {
   if (!self.slots.length) {
     self.getSlots(function(err) {
       if (err) return cb(err);
-      self.command(cmd, args);
+      self.doCommand(cmd, conf, args);
     });
     return;
   }
@@ -202,7 +233,7 @@ RedisClustr.prototype.command = function(cmd, args) {
   // now take cb off args so we can attach our own callback wrapper
   if (argsCb) args.pop();
 
-  var r = self.selectClient(key);
+  var r = self.selectClient(key, conf);
   if (!r) return cb(new Error('couldn\'t get client'));
 
   self.commandCallback(r, cmd, args, cb);
@@ -252,7 +283,7 @@ RedisClustr.prototype.commandCallback = function(cli, cmd, args, cb) {
 };
 
 // redis cluster requires multi-key commands to be split into individual commands
-RedisClustr.prototype.multiKeyCommand = function(cmd, conf, args) {
+RedisClustr.prototype.doMultiKeyCommand = function(cmd, conf, multiConf, args) {
   var self = this;
 
   var cb = function(err) {
@@ -268,18 +299,18 @@ RedisClustr.prototype.multiKeyCommand = function(cmd, conf, args) {
   }
 
   // already split into an individual command
-  if (keys.length === conf.interval) {
-    return self.command(cmd, args);
+  if (keys.length === multiConf.interval) {
+    return self.doCommand(cmd, conf, args);
   }
 
   // batch the multi-key command into individual ones
   var b = self.batch();
-  for (var i = 0; i < keys.length; i += conf.interval) {
-    b[cmd].apply(b, keys.slice(i, i + conf.interval));
+  for (var i = 0; i < keys.length; i += multiConf.interval) {
+    b[cmd].apply(b, keys.slice(i, i + multiConf.interval));
   }
 
   b.exec(function(err, resp) {
-    if (resp) resp = conf.group(resp);
+    if (resp) resp = multiConf.group(resp);
     cb(err, resp);
   });
 };
