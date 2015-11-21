@@ -56,6 +56,10 @@ var redis = new RedisCluster({
   maxQueueLength: 100, // default: no limit. Maximum length of the getSlots queue (basically number of commands that can be queued whilst connecting to the cluster)
   queueShift: false, // default: true. Whether to shift the getSlots callback queue when it's at max length (error oldest callback), or to error on the new callback
   readyTimeout: 5000, // default: no timeout. Max time to wait to connect to cluster before sending an error to all getSlots callbacks
+  slaves: 'share', // default: 'never'. How to direct readOnly commands: 'never' to use masters only, 'share' to distribute between masters and slaves or 'always' to  only use slaves (if available)
+  createClient: function(port, host, options) {
+    return require('redis').createClient(port, host, options);
+  }, // default: redis.createClient. Function used to connect to redis, called with arguments above
   redisOptions: {
     // options passed to the node_redis client https://github.com/NodeRedis/node_redis#options-is-an-object-with-the-following-possible-properties
     retry_max_delay: 500
