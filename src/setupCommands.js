@@ -1,19 +1,20 @@
+'use strict';
 var commands = require('../config/commands');
-var multiKeyCommands = require('../config/multiKeyCommands');
 
 module.exports = function(Class) {
   function setupCommand(cmd, conf) {
-    if (multiKeyCommands[cmd] && Class.prototype.doMultiKeyCommand) {
-      Class.prototype[cmd] = function() {
-        this.doMultiKeyCommand(cmd, conf, multiKeyCommands[cmd], arguments);
-        return this;
-      };
-    } else {
-      Class.prototype[cmd] = function() {
-        this.doCommand(cmd, conf, arguments);
-        return this;
-     };
-    }
+    var fn = 'doCommand';
+    if (conf.multiKey && conf.group && Class.prototype.doMultiKeyCommand) fn = 'doMultiKeyCommand';
+
+    Class.prototype[cmd] = function() {
+      var args = new Array(arguments.length);
+      for (var i = 0; i < args.length; i++) {
+        args[i] = arguments[i];
+      }
+
+      this[fn](cmd, conf, args);
+      return this;
+    };
   }
 
   for (var i in commands) {

@@ -1,5 +1,5 @@
+'use strict';
 var setupCommands = require('./setupCommands');
-var multiKeyCommands = require('../config/multiKeyCommands');
 
 /*
 Like a multi but without using the MULTI command itself, so it's useful
@@ -40,7 +40,7 @@ RedisBatch.prototype.exec = function(cb) {
   var resp = [];
   var errors = null;
 
-  if (!todo) return setImmediate(function() { cb(null); });
+  if (!todo) return setImmediate(function() { cb(null, []); });
 
   var isDone = function() {
     if (!--todo) return cb(errors, resp);
@@ -51,30 +51,17 @@ RedisBatch.prototype.exec = function(cb) {
   self.queue.forEach(function(op, index) {
     var cmd = op[0];
     var conf = op[1];
-    var keys = Array.prototype.slice.call(op[2]);
 
-    var cb = function(err) {
-      if (err) self.cluster.emit('error', err);
-    };
-    if (typeof keys[keys.length - 1] === 'function') cb = keys.pop();
-
-    var first = keys[0];
-    if (Array.isArray(first)) {
-      keys = first;
-    }
+    var parsed = self.cluster.parseArgs(op[2]);
+    var args = parsed[0];
+    var cb = parsed[1];
 
     // support multi-key commands (only run special code if there's more than one key, otherwise normal command)
-    var multiConf = multiKeyCommands[cmd];
-    if (multiConf && keys.length > multiConf.interval) {
-      var multiGroups = [];
-      for (var i = 0; i < keys.length; i += multiConf.interval) {
-        multiGroups.push(keys.slice(i, i + multiConf.interval));
-      }
-      var multiTodo = multiGroups.length;
+    if (conf.multiKey && conf.group && args.length > conf.interval) {
+      var multiTodo = args.length / conf.interval;
       var multiErrors = null;
       var multiResp = [];
-      multiGroups.forEach(function(multiKeys, multiIndex) {
-        var cli = self.cluster.selectClient(multiKeys[0], conf);
+      var runMultiGroup = function(cli, multiKeys, multiIndex) {
         var b = batches[cli.address] || (batches[cli.address] = cli.batch());
         self.cluster.commandCallback(cli, cmd, multiKeys, function(err, res) {
           if (err) {
@@ -83,22 +70,43 @@ RedisBatch.prototype.exec = function(cb) {
           }
           multiResp[multiIndex] = res;
           if (!--multiTodo) {
-            multiResp = multiConf.group(multiResp);
+            multiResp = conf.group(multiResp);
             cb(multiErrors, multiResp);
             resp[index] = multiResp;
             isDone();
           }
         });
         b[cmd].apply(b, multiKeys);
-      });
+      };
+      for (var i = 0; i < multiTodo; i++) {
+        var multiKeys = args.slice(i * conf.interval, (i + 1) * conf.interval);
+        var cli = self.cluster.selectClient(multiKeys[0], conf);
+        if (!cli[cmd]) return cb(new Error('NodeRedis doesn\'t know the ' + cmd + ' command'));
+        runMultiGroup(cli, multiKeys, i);
+      }
       return;
     }
 
-    var cli = self.cluster.selectClient(keys, conf);
-    var b = batches[cli.address] || (batches[cli.address] = cli.batch());
+    var cli;
+    if (cmd === 'eval' || cmd === 'evalsha') {
+      var numKeys = args[1];
+      if (!numKeys) {
+        cli = self.getRandomConnection();
+      } else {
+        // select based on the first KEYS argument
+        // we *could* validate that all keys are together, but it's easier
+        // to allow redis to error instead
+        cli = self.cluster.selectClient(args[2], {});
+      }
+    } else {
+      cli = self.cluster.selectClient(args, conf);
+    }
 
-    self.cluster.commandCallback(cli, cmd, keys, function(err, res) {
-      cb.apply(this, arguments);
+    var b = batches[cli.address] || (batches[cli.address] = cli.batch());
+    if (!b[cmd]) return cb(new Error('NodeRedis doesn\'t know the ' + cmd + ' command'));
+
+    self.cluster.commandCallback(cli, cmd, args, function(err, res) {
+      cb(err, res);
       if (err) {
         if (!errors) errors = [];
         errors.push(err);
@@ -107,7 +115,7 @@ RedisBatch.prototype.exec = function(cb) {
       isDone();
     });
 
-    b[cmd].apply(b, keys);
+    b[cmd].apply(b, args);
   });
 
   for (var i in batches) batches[i].exec();

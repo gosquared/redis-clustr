@@ -1,3 +1,4 @@
+'use strict';
 // quickly ported from https://github.com/antirez/redis-rb-cluster/blob/master/crc16.rb
 
 var lookup = [

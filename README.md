@@ -12,9 +12,9 @@ This module is a relatively thin wrapper around the node redis client to enable 
 
 
 ```javascript
-var RedisCluster = require('redis-clustr');
+var RedisClustr = require('redis-clustr');
 
-var redis = new RedisCluster({
+var redis = new RedisClustr({
   servers: [
     {
       host: '127.0.0.1',
@@ -35,9 +35,9 @@ Servers in the cluster will be automatically connected to (via the response of `
 By default, clients will be created using `Redis.createClient(port, host)`. This can be overridden by providing a function which *must* return a [node_redis](https://github.com/mranney/node_redis) client. Clients are cached so only one connection will be made to each server.
 
 ```javascript
-var RedisCluster = require('redis-clustr');
+var RedisClustr = require('redis-clustr');
 var RedisClient = require('redis');
-var redis = new RedisCluster({
+var redis = new RedisClustr({
   servers: [...],
   createClient: function(port, host) {
     // this is the default behaviour
@@ -49,13 +49,13 @@ var redis = new RedisCluster({
 ### Options
 
 ```javascript
-var RedisCluster = require('redis-clustr');
-var redis = new RedisCluster({
+var RedisClustr = require('redis-clustr');
+var redis = new RedisClustr({
   servers: [...],
   slotInterval: 1000, // default: none. Interval to repeatedly re-fetch cluster slot configuration
   maxQueueLength: 100, // default: no limit. Maximum length of the getSlots queue (basically number of commands that can be queued whilst connecting to the cluster)
   queueShift: false, // default: true. Whether to shift the getSlots callback queue when it's at max length (error oldest callback), or to error on the new callback
-  readyTimeout: 5000, // default: no timeout. Max time to wait to connect to cluster before sending an error to all getSlots callbacks
+  wait: 5000, // default: no timeout. Max time to wait to connect to cluster before sending an error to all getSlots callbacks
   slaves: 'share', // default: 'never'. How to direct readOnly commands: 'never' to use masters only, 'share' to distribute between masters and slaves or 'always' to  only use slaves (if available)
   createClient: function(port, host, options) {
     return require('redis').createClient(port, host, options);
@@ -82,6 +82,21 @@ Multi commands are *supported* but treated as a batch of commands (not an actual
 ### Multi-key commands (`del`, `mget` and `mset`)
 
 Multi-key commands are also supported and will be split into individual commands (using a batch) then have the response recreated. Only `del`, `mget` and `mset` are supported at the moment.
+
+### Pub/Sub
+
+Pub/Sub is fully supported. When subscribe is used, a new client will be created (connected to a random node). This client is shared for all subscriptions.
+
+```javascript
+var RedisClustr = require('redis-clustr');
+var redis = new RedisClustr({...});
+
+redis.on('message', function(channel, message) { /* ... */ });
+
+redis.subscribe('my-channel', function(err) {
+  redis.publish('my-channel', 'have a lovely day!');
+});
+```
 
 ### Errors
 
