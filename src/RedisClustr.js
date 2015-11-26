@@ -350,7 +350,7 @@ RedisClustr.prototype.parseArgs = function(args, cb) {
   }
 
   // now take cb off args so we can attach our own callback wrapper
-  if (argsCb) args.pop();
+  if (argsCb) args = args.slice(0, -1);
 
   if (Array.isArray(args[0])) {
     args = args[0];
