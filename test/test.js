@@ -1,5 +1,5 @@
 'use strict';
-var RedisClustr = require('../src/redisClustr');
+var RedisClustr = require('../src/RedisClustr');
 var assert = require('assert');
 var commands = require('../config/commands');
 
