@@ -25,6 +25,7 @@
     "test": "mocha test/test.js"
   },
   "dependencies": {
+    "cluster-key-slot": "^1.0.5",
     "double-ended-queue": "^2.1.0-0",
     "redis": "~2.5.0"
   },

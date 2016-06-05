@@ -1,6 +1,6 @@
 'use strict';
 var setupCommands = require('./setupCommands');
-var crc = require('./crc16-xmodem');
+var calculateSlot = require('cluster-key-slot');
 var redis = require('redis');
 var RedisBatch = require('./RedisBatch');
 var Events = require('events').EventEmitter;
@@ -275,21 +275,7 @@ RedisClustr.prototype.selectClient = function(key, conf) {
   if (Array.isArray(key)) key = key[0];
   if (Buffer.isBuffer(key)) key = key.toString();
 
-  // support for hash tags to keep keys on the same slot
-  // http://redis.io/topics/cluster-spec#keys-hash-tags
-  var openKey = key.indexOf('{');
-  if (openKey !== -1) {
-    var tmpKey = key.substring(openKey + 1);
-    var closeKey = tmpKey.indexOf('}');
-
-    // } in key and it's not {}
-    if (closeKey > 0) {
-      key = tmpKey.substring(0, closeKey);
-    }
-  }
-
-  var slot = crc(key) % 16384;
-
+  var slot = calculateSlot(key);
   var clients = self.slots[slot];
 
   // if we haven't got config for this slot, try any connection
