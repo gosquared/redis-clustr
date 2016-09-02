@@ -206,7 +206,7 @@ RedisClustr.prototype.getSlots = function(cb) {
 
         // array of all clients, clients[0] = master, others are slaves
         var clients = s.slice(2).map(function(c, index) {
-          var name = c.join(':');
+          var name = c[0] + ':' + c[1];
           if (seenClients.indexOf(name) === -1) seenClients.push(name);
 
           return self.getClient(c[1], c[0], index === 0);
