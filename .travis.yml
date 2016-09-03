@@ -4,6 +4,10 @@ node_js:
   - "6"
   - "4"
 
+env:
+  - REDIS_VERSION=3.2.3
+  - REDIS_VERSION=3.0.7
+
 install:
   - npm install
   - test/setup-redis
