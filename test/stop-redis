@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+for i in {1..6}
+do
+  kill $(cat /tmp/redis_cluster_node$i.pid)
+done
+
+rm -f /tmp/redis_cluster_node{1..6}.conf dump.rdb appendonly.aof

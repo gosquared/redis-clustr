@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+redis_conf() {
+  cat <<-EOF
+daemonize yes
+port 700$1
+cluster-node-timeout 5000
+pidfile /tmp/redis_cluster_node$1.pid
+logfile /tmp/redis_cluster_node$1.log
+save ""
+appendonly no
+cluster-enabled yes
+cluster-config-file /tmp/redis_cluster_node$1.conf
+EOF
+}
+
+for i in {1..6}
+do
+  redis_conf $i | redis-git/src/redis-server -
+done
+
+sleep 3
+
+echo "yes" | ruby redis-git/src/redis-trib.rb create --replicas 1 127.0.0.1:700{1..6}
+
+sleep 3

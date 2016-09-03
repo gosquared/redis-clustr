@@ -1,0 +1,12 @@
+language: node_js
+
+node_js:
+  - "6"
+  - "4"
+
+install:
+  - npm install
+  - test/setup-redis
+
+before_script: test/start-redis
+after_script: test/stop-redis
