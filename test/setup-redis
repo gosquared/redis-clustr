@@ -4,16 +4,13 @@ REDIS_VERSION=${REDIS_VERSION:-3.2.3}
 
 if [ ! -e redis-git ]
 then
-  git clone https://github.com/antirez/redis redis-git
+  git clone https://github.com/antirez/redis redis-git --branch $REDIS_VERSION
 else
   pushd redis-git
   git fetch
+  git checkout $REDIS_VERSION
   popd
 fi
-
-pushd redis-git
-git checkout $REDIS_VERSION
-popd
 
 make -C redis-git -j $(nproc)
 
