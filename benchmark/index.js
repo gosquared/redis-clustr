@@ -12,7 +12,7 @@ var redis = new RedisClustr({
     servers: [
         {
             host: '127.0.0.1',
-            port: 30001
+            port: 7006
         }
     ]
 });
