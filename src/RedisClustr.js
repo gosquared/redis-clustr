@@ -5,7 +5,7 @@ var redis = require('redis');
 var RedisBatch = require('./RedisBatch');
 var Events = require('events').EventEmitter;
 var util = require('util');
-var Queue = require('double-ended-queue');
+var Queue = require('denque');
 
 var RedisClustr = module.exports = function(config) {
   var self = this;
