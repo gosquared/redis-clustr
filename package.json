@@ -25,6 +25,7 @@
     "test": "mocha test/test.js"
   },
   "dependencies": {
+    "benchmark": "^2.1.1",
     "cluster-key-slot": "^1.0.5",
     "double-ended-queue": "^2.1.0-0",
     "redis": "^2.6.0"
