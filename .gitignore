@@ -1,3 +1,4 @@
 node_modules
 .idea
 redis-git
+yarn.lock
