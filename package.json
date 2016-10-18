@@ -1,6 +1,6 @@
 {
   "name": "redis-clustr",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Redis cluster client",
   "main": "src/RedisClustr.js",
   "keywords": [
