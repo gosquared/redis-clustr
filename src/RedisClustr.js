@@ -620,7 +620,12 @@ RedisClustr.prototype.batch = RedisClustr.prototype.multi = function(commands) {
 
   if (Array.isArray(commands) && commands.length > 0) {
     commands.forEach(function (command) {
-      batch[command[0]](...command.slice(1));
+      var args = [];
+      if (command.length > 1) {
+        args = command.slice(1);
+      }
+
+      batch[command[0]].apply(batch, args);
     });
   }
 
