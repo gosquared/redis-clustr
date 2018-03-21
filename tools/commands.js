@@ -9,11 +9,17 @@ redis.command(function(err, res) {
   redis.quit();
   if (err) return console.error(err);
 
+  // Ensure stable sorting of commands to avoid git diff churn every time we regenerate
+  res.sort(function(a, b) {
+    return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+  });
+
   for (var i = 0; i < res.length; i++) {
     var c = res[i];
     var cnf = extraConfig[c[0]] || {};
     cnf.multiKey = c[4] === -1;
     cnf.interval = c[5];
+    cnf.keyless = c[5] === 0 && c[2].indexOf('movablekeys') === -1;
     cnf.readOnly = c[2].indexOf('readonly') !== -1;
     commands[c[0]] = cnf;
   }
