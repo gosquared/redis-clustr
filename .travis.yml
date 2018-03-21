@@ -1,10 +1,13 @@
 language: node_js
 
 node_js:
+  - "8"
   - "6"
   - "4"
 
 env:
+  - REDIS_VERSION=4.0.8
+  - REDIS_VERSION=3.2.11
   - REDIS_VERSION=3.2.3
   - REDIS_VERSION=3.0.7
 
