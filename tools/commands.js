@@ -19,14 +19,14 @@ redis.command(function(err, res) {
     var cnf = extraConfig[c[0]] || {};
     cnf.multiKey = c[4] === -1;
     cnf.interval = c[5];
-    cnf.keyless = c[5] === 0 && c[2].indexOf('movablekeys') === -1;
+    cnf.keyless = (c[1] === 1 || c[1] === -1) && c[5] === 0 && c[2].indexOf('movablekeys') === -1;
     cnf.readOnly = c[2].indexOf('readonly') !== -1;
     commands[c[0]] = cnf;
   }
 
   var file = '// Generated using tools/commands.js and config/commandsConfig.js on ' + new Date().toUTCString() + '\n\n';
   file += beautify('module.exports = ' + convert(commands), { indent_size: 2 }) + ';\n';
-  fs.writeFileSync('./config/commands.js', file);
+  fs.writeFileSync('../config/commands.js', file);
 });
 
 // horrible function to convert a JS object to a string (so we can write the config file)
