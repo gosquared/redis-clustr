@@ -270,7 +270,7 @@ RedisClustr.prototype.selectClient = function(key, conf) {
 
   // this command doesnt have keys, return any connection
   // NOTE: this means slaves may be used for no key commands regardless of slave config
-  if (conf.interval === 0) return self.getRandomConnection();
+  if (conf.keyless) return self.getRandomConnection();
 
   if (Array.isArray(key)) key = key[0];
   if (Buffer.isBuffer(key)) key = key.toString();
@@ -359,7 +359,7 @@ RedisClustr.prototype.doCommand = function(cmd, conf, args) {
   self.parseArgs(args, function(_, args, cb) {
     var key = args[0];
 
-    if (!key) return cb(new Error('no key for command: ' + cmd));
+    if (!key && !conf.keyless) return cb(new Error('no key for command: ' + cmd));
 
     var r = self.selectClient(key, conf);
     if (!r) return cb(new Error('couldn\'t get client'));
