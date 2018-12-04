@@ -845,6 +845,19 @@ module.exports = {
     keyless: false,
     readOnly: true
   },
+  unlink: {
+    group: function(resp) {
+      var total = 0;
+      for (var i = 0; i < resp.length; i++) {
+        total += (resp[i] || 0);
+      }
+      return total;
+    },
+    multiKey: true,
+    interval: 1,
+    keyless: false,
+    readOnly: false
+  },
   unsubscribe: {
     multiKey: false,
     interval: 0,
