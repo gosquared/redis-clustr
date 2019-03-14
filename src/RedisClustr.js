@@ -614,9 +614,22 @@ setupCommands(RedisClustr);
  * @date   2014-11-19
  * @return {RedisBatch}   A RedisBatch which has a very similar interface                                                 to redis/
  */
-RedisClustr.prototype.batch = RedisClustr.prototype.multi = function() {
+RedisClustr.prototype.batch = RedisClustr.prototype.multi = function(commands) {
   var self = this;
-  return new RedisBatch(self);
+  var batch = new RedisBatch(self);
+
+  if (Array.isArray(commands) && commands.length > 0) {
+    commands.forEach(function (command) {
+      var args = [];
+      if (command.length > 1) {
+        args = command.slice(1);
+      }
+
+      batch[command[0]].apply(batch, args);
+    });
+  }
+
+  return batch;
 };
 
 /**
