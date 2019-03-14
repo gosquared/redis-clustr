@@ -76,10 +76,11 @@ RedisClustr.prototype.getClient = function(port, host, master) {
     if (
       err.code === 'CONNECTION_BROKEN' ||
       err.code === 'UNCERTAIN_STATE' ||
+      err.code === 'NR_CLOSED' ||
       /Redis connection to .* failed.*/.test(err.message)
     ) {
-      // broken connection so force a new client to be created (node_redis will reconnect other errors)
-      if (err.code === 'CONNECTION_BROKEN') self.connections[name] = null;
+      // broken/closed connection so force a new client to be created (node_redis should reconnect other errors)
+      if (err.code === 'CONNECTION_BROKEN' || err.code === 'NR_CLOSED') self.connections[name] = null;
       self.emit('connectionError', err, cli);
       self.getSlots();
       return;
@@ -563,10 +564,10 @@ RedisClustr.prototype.subscribeAll = function(exclude) {
   var cli = self.subscribeClient = self.createClient(con.connection_options.port, con.connection_options.host);
 
   cli.on('error', function(err) {
-    console.log(err);
     if (
       err.code === 'CONNECTION_BROKEN' ||
       err.code === 'UNCERTAIN_STATE' ||
+      err.code === 'NR_CLOSED' ||
       /Redis connection to .* failed.*/.test(err.message)
     ) {
       self.emit('connectionError', err, cli);
