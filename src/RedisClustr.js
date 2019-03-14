@@ -79,8 +79,8 @@ RedisClustr.prototype.getClient = function(port, host, master) {
       err.code === 'NR_CLOSED' ||
       /Redis connection to .* failed.*/.test(err.message)
     ) {
-      // broken connection so force a new client to be created (node_redis will reconnect other errors)
-      if (err.code === 'CONNECTION_BROKEN') self.connections[name] = null;
+      // broken/closed connection so force a new client to be created (node_redis should reconnect other errors)
+      if (err.code === 'CONNECTION_BROKEN' || err.code === 'NR_CLOSED') self.connections[name] = null;
       self.emit('connectionError', err, cli);
       self.getSlots();
       return;
