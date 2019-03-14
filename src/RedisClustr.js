@@ -105,6 +105,9 @@ RedisClustr.prototype.getClient = function(port, host, master) {
     });
     if (!self.connected && wasConnected) self.emit('disconnect');
 
+    // set connection to null so we create a new client if we want to reconnect
+    if (cli.closing) self.connections[name] = null;
+
     // setImmediate as node_redis sets emitted_end after emitting end
     setImmediate(function() {
       var wasEnded = self.ended;
@@ -297,6 +300,13 @@ RedisClustr.prototype.selectClient = function(key, conf) {
   }
 
   var cli = clients[index];
+
+  if (!cli.ready) {
+    self.getSlots();
+    // this could be improved to select another slave
+    return self.getRandomConnection();
+  }
+
   if (index === 0 && cli.readOnly) {
     cli.send_command('readwrite', []);
     cli.readOnly = false;
@@ -436,7 +446,7 @@ RedisClustr.prototype.commandCallback = function(cli, cmd, args, cb) {
         return;
       }
 
-      if (msg.substr(0, 8) === 'TRYAGAIN' || err.code === 'CLUSTERDOWN') {
+      if (err.code === 'CLUSTERDOWN' || msg.substr(0, 8) === 'TRYAGAIN') {
         // TRYAGAIN response or cluster down, retry with backoff up to 1280ms
         setTimeout(function() {
           cli[cmd].apply(cli, args);
