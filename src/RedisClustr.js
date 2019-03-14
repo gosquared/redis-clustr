@@ -126,14 +126,21 @@ RedisClustr.prototype.getClient = function(port, host, master) {
 /**
  * Get a random Redis connection
  * @date   2015-02-18
- * @param  {array}   exclude  List of addresses to exclude (falsy to ignore none)
- * @return {Redis}            A random, ready, Redis connection.
+ * @param  {array}   exclude     List of addresses to exclude (falsy to ignore none)
+ * @param  {boolean} forceSlaves Include slaves, regardless of configuration
+ * @return {Redis}               A random, ready, Redis connection.
  */
-RedisClustr.prototype.getRandomConnection = function(exclude) {
+RedisClustr.prototype.getRandomConnection = function(exclude, forceSlaves) {
   var self = this;
 
+  var masterOnly = !forceSlaves && self.config.slaves === 'never';
+
   var available = Object.keys(self.connections).filter(function(f) {
-    return self.connections[f] && self.connections[f].ready && (!exclude || exclude.indexOf(f) === -1);
+    var con = self.connections[f];
+    return con &&
+      con.ready &&
+      (!exclude || exclude.indexOf(f) === -1) &&
+      (!masterOnly || con.master);
   });
 
   var randomIndex = Math.floor(Math.random() * available.length);
@@ -182,7 +189,7 @@ RedisClustr.prototype.getSlots = function(cb) {
     if (typeof readyTimeout !== 'undefined') clearTimeout(readyTimeout);
     if (self.quitting) return runCbs(new Error('cluster is quitting'));
 
-    var client = self.getRandomConnection(exclude);
+    var client = self.getRandomConnection(exclude, true);
     if (!client) {
       var err = new Error('couldn\'t get slot allocation');
       err.errors = tryErrors;
@@ -273,7 +280,6 @@ RedisClustr.prototype.selectClient = function(key, conf) {
   var self = this;
 
   // this command doesnt have keys, return any connection
-  // NOTE: this means slaves may be used for no key commands regardless of slave config
   if (conf.keyless) return self.getRandomConnection();
 
   if (Array.isArray(key)) key = key[0];
