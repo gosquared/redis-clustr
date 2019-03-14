@@ -105,6 +105,9 @@ RedisClustr.prototype.getClient = function(port, host, master) {
     });
     if (!self.connected && wasConnected) self.emit('disconnect');
 
+    // set connection to null so we create a new client if we want to reconnect
+    if (cli.closing) self.connections[name] = null;
+
     // setImmediate as node_redis sets emitted_end after emitting end
     setImmediate(function() {
       var wasEnded = self.ended;
@@ -123,14 +126,21 @@ RedisClustr.prototype.getClient = function(port, host, master) {
 /**
  * Get a random Redis connection
  * @date   2015-02-18
- * @param  {array}   exclude  List of addresses to exclude (falsy to ignore none)
- * @return {Redis}            A random, ready, Redis connection.
+ * @param  {array}   exclude     List of addresses to exclude (falsy to ignore none)
+ * @param  {boolean} forceSlaves Include slaves, regardless of configuration
+ * @return {Redis}               A random, ready, Redis connection.
  */
-RedisClustr.prototype.getRandomConnection = function(exclude) {
+RedisClustr.prototype.getRandomConnection = function(exclude, forceSlaves) {
   var self = this;
 
+  var masterOnly = !forceSlaves && self.config.slaves === 'never';
+
   var available = Object.keys(self.connections).filter(function(f) {
-    return self.connections[f] && self.connections[f].ready && (!exclude || exclude.indexOf(f) === -1);
+    var con = self.connections[f];
+    return con &&
+      con.ready &&
+      (!exclude || exclude.indexOf(f) === -1) &&
+      (!masterOnly || con.master);
   });
 
   var randomIndex = Math.floor(Math.random() * available.length);
@@ -179,7 +189,7 @@ RedisClustr.prototype.getSlots = function(cb) {
     if (typeof readyTimeout !== 'undefined') clearTimeout(readyTimeout);
     if (self.quitting) return runCbs(new Error('cluster is quitting'));
 
-    var client = self.getRandomConnection(exclude);
+    var client = self.getRandomConnection(exclude, true);
     if (!client) {
       var err = new Error('couldn\'t get slot allocation');
       err.errors = tryErrors;
@@ -270,7 +280,6 @@ RedisClustr.prototype.selectClient = function(key, conf) {
   var self = this;
 
   // this command doesnt have keys, return any connection
-  // NOTE: this means slaves may be used for no key commands regardless of slave config
   if (conf.keyless) return self.getRandomConnection();
 
   if (Array.isArray(key)) key = key[0];
@@ -297,6 +306,13 @@ RedisClustr.prototype.selectClient = function(key, conf) {
   }
 
   var cli = clients[index];
+
+  if (!cli.ready) {
+    self.getSlots();
+    // this could be improved to select another slave
+    return self.getRandomConnection();
+  }
+
   if (index === 0 && cli.readOnly) {
     cli.send_command('readwrite', []);
     cli.readOnly = false;
@@ -436,7 +452,7 @@ RedisClustr.prototype.commandCallback = function(cli, cmd, args, cb) {
         return;
       }
 
-      if (msg.substr(0, 8) === 'TRYAGAIN' || err.code === 'CLUSTERDOWN') {
+      if (err.code === 'CLUSTERDOWN' || msg.substr(0, 8) === 'TRYAGAIN') {
         // TRYAGAIN response or cluster down, retry with backoff up to 1280ms
         setTimeout(function() {
           cli[cmd].apply(cli, args);
