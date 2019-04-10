@@ -1,6 +1,6 @@
 'use strict';
 // not really tests but being used to ensure things are working
-var RedisClustr = require('../src/redisClustr');
+var RedisClustr = require('../src/RedisClustr');
 
 var c = new RedisClustr({
   servers: [
@@ -31,6 +31,18 @@ c.set('hi', 650);
 c.eval('redis.call("set", KEYS[1], ARGV[1]); return redis.call("get", KEYS[1]);', 1, 'evalkey', 'evalval', function(err, resp) {
   console.log('eval', err, resp);
 });
+
+function delKey(callback) {
+  c.del('whateverkey', callback);
+}
+
+delKey(function(err) {
+  if (err) return console.error('del error', err);
+
+  console.log('del');
+});
+
+delKey();
 
 var todo = [
   function(done) {

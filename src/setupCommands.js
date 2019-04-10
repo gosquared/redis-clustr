@@ -12,6 +12,10 @@ module.exports = function(Class) {
         args[i] = arguments[i];
       }
 
+      if (args.length > 0 && typeof args[args.length - 1] === 'undefined') {
+        args.pop();
+      }
+
       this[fn](cmd, conf, args);
       return this;
     };
