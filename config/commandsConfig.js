@@ -22,5 +22,14 @@ module.exports = {
       }
       return total;
     }
+  },
+  unlink: {
+    group: function(resp) {
+      var total = 0;
+      for (var i = 0; i < resp.length; i++) {
+        total += (resp[i] || 0);
+      }
+      return total;
+    }
   }
 };
