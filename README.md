@@ -5,7 +5,7 @@
 
 [![NPM](https://nodei.co/npm/redis-clustr.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/redis-clustr)
 
-This module is a relatively thin wrapper around the node redis client to enable use of [Redis Cluster](http://redis.io/topics/cluster-spec). It tries to be as unobtrusive as possible - mimicing the behaviour of the [node_redis](https://github.com/mranney/node_redis) client.
+This module is a relatively thin wrapper around the node redis client to enable use of [Redis Cluster](http://redis.io/topics/cluster-spec). It tries to be as unobtrusive as possible - mimicking the behaviour of the [node_redis](https://github.com/mranney/node_redis) client.
 
 
 ## Usage
@@ -73,7 +73,7 @@ var redis = new RedisClustr({
 
 ### Slot reallocation
 
-Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we wil re-issue the command without updating the slots. `TRYAGAIN` responses will be retried automatically.
+Supported - when a response is given with a `MOVED` error, we will immediately re-issue the command on the other server and run another `cluster slots` to get the new slot allocations. `ASK` redirection is also supported - we will re-issue the command without updating the slots. `TRYAGAIN` responses will be retried automatically.
 
 ### Multi / Exec (Batch)
 
