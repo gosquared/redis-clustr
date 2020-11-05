@@ -1,4 +1,4 @@
-// Generated using tools/commands.js and config/commandsConfig.js on Wed, 21 Mar 2018 11:49:17 GMT
+// Generated using tools/commands.js and config/commandsConfig.js on Mon, 12 Nov 2018 15:49:18 GMT
 
 module.exports = {
   append: {
@@ -11,31 +11,37 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   auth: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   bgrewriteaof: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   bgsave: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   bitcount: {
     multiKey: false,
     interval: 1,
     keyless: false,
     readOnly: true
+  },
+  bitfield: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: false
   },
   bitop: {
     multiKey: true,
@@ -70,26 +76,26 @@ module.exports = {
   client: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   cluster: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   command: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   config: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   dbsize: {
     multiKey: false,
@@ -132,7 +138,7 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   dump: {
     multiKey: false,
@@ -143,8 +149,8 @@ module.exports = {
   echo: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   eval: {
     multiKey: false,
@@ -193,6 +199,54 @@ module.exports = {
     interval: 0,
     keyless: true,
     readOnly: false
+  },
+  geoadd: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: false
+  },
+  geodist: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
+  },
+  geohash: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
+  },
+  geopos: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
+  },
+  georadius: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: false
+  },
+  georadius_ro: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
+  },
+  georadiusbymember: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: false
+  },
+  georadiusbymember_ro: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
   },
   get: {
     multiKey: false,
@@ -278,6 +332,12 @@ module.exports = {
     keyless: false,
     readOnly: false
   },
+  host:{
+    multiKey: false,
+    interval: 0,
+    keyless: true,
+    readOnly: false
+  },
   hscan: {
     multiKey: false,
     interval: 1,
@@ -295,6 +355,12 @@ module.exports = {
     interval: 1,
     keyless: false,
     readOnly: false
+  },
+  hstrlen: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
+    readOnly: true
   },
   hvals: {
     multiKey: false,
@@ -324,25 +390,25 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   keys: {
     multiKey: false,
     interval: 0,
-    keyless: true,
+    keyless: false,
     readOnly: true
   },
   lastsave: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   latency: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   lindex: {
     multiKey: false,
@@ -404,6 +470,12 @@ module.exports = {
     keyless: false,
     readOnly: false
   },
+  memory: {
+    multiKey: false,
+    interval: 0,
+    keyless: false,
+    readOnly: true
+  },
   mget: {
     group: function(resp) {
       return resp.map(function(r) {
@@ -422,11 +494,17 @@ module.exports = {
     keyless: false,
     readOnly: false
   },
+  module: {
+    multiKey: false,
+    interval: 0,
+    keyless: false,
+    readOnly: false
+  },
   monitor: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   move: {
     multiKey: false,
@@ -453,7 +531,7 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   object: {
     multiKey: false,
@@ -494,7 +572,7 @@ module.exports = {
   pfdebug: {
     multiKey: false,
     interval: 0,
-    keyless: true,
+    keyless: false,
     readOnly: false
   },
   pfmerge: {
@@ -507,13 +585,19 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   ping: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
+  },
+  post: {
+    multiKey: false,
+    interval: 0,
+    keyless: true,
+    readOnly: false
   },
   psetex: {
     multiKey: false,
@@ -524,13 +608,13 @@ module.exports = {
   psubscribe: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   psync: {
     multiKey: false,
     interval: 0,
-    keyless: true,
+    keyless: false,
     readOnly: true
   },
   pttl: {
@@ -542,20 +626,20 @@ module.exports = {
   publish: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   pubsub: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   punsubscribe: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   randomkey: {
     multiKey: false,
@@ -567,13 +651,13 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   readwrite: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   rename: {
     multiKey: false,
@@ -591,7 +675,7 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   restore: {
     multiKey: false,
@@ -645,12 +729,12 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   scan: {
     multiKey: false,
     interval: 0,
-    keyless: true,
+    keyless: false,
     readOnly: true
   },
   scard: {
@@ -662,8 +746,8 @@ module.exports = {
   script: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   sdiff: {
     multiKey: true,
@@ -680,8 +764,8 @@ module.exports = {
   select: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   set: {
     multiKey: false,
@@ -717,7 +801,7 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   sinter: {
     multiKey: true,
@@ -740,14 +824,14 @@ module.exports = {
   slaveof: {
     multiKey: false,
     interval: 0,
-    keyless: true,
+    keyless: false,
     readOnly: false
   },
   slowlog: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   smembers: {
     multiKey: false,
@@ -800,8 +884,8 @@ module.exports = {
   subscribe: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   substr: {
     multiKey: false,
@@ -821,6 +905,12 @@ module.exports = {
     keyless: false,
     readOnly: false
   },
+  swapdb: {
+    multiKey: false,
+    interval: 0,
+    keyless: false,
+    readOnly: false
+  },
   sync: {
     multiKey: false,
     interval: 0,
@@ -831,6 +921,12 @@ module.exports = {
     multiKey: false,
     interval: 0,
     keyless: true,
+    readOnly: false
+  },
+  touch: {
+    multiKey: false,
+    interval: 1,
+    keyless: false,
     readOnly: true
   },
   ttl: {
@@ -845,29 +941,35 @@ module.exports = {
     keyless: false,
     readOnly: true
   },
+  unlink: {
+    multiKey: true,
+    interval: 1,
+    keyless: false,
+    readOnly: false
+  },
   unsubscribe: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   unwatch: {
     multiKey: false,
     interval: 0,
     keyless: true,
-    readOnly: true
+    readOnly: false
   },
   wait: {
     multiKey: false,
     interval: 0,
-    keyless: true,
-    readOnly: true
+    keyless: false,
+    readOnly: false
   },
   watch: {
     multiKey: true,
     interval: 1,
     keyless: false,
-    readOnly: true
+    readOnly: false
   },
   zadd: {
     multiKey: false,
