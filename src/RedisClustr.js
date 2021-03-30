@@ -279,8 +279,8 @@ RedisClustr.prototype.getSlots = function(cb) {
 RedisClustr.prototype.selectClient = function(key, conf) {
   var self = this;
 
-  // this command doesnt have keys, return any connection
-  if (conf.keyless) return self.getRandomConnection();
+  // this command doesnt have keys and is read only, return any connection
+  if (conf.keyless && conf.ReadOnly) return self.getRandomConnection();
 
   if (Array.isArray(key)) key = key[0];
   if (Buffer.isBuffer(key)) key = key.toString();
