@@ -25,6 +25,7 @@ var RedisClustr = module.exports = function(config) {
   self.subscriptions = null;
   self.ready = false;
   self.connected = false;
+  self.config.slaves = self.config.slaves || 'never';
 
   for (var i = 0; i < config.servers.length; i++) {
     var c = config.servers[i];
