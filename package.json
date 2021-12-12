@@ -28,7 +28,7 @@
   "dependencies": {
     "cluster-key-slot": "^1.0.5",
     "denque": "^1.1.0",
-    "redis": "^2.6.0"
+    "redis": "^3.1.2"
   },
   "devDependencies": {
     "benchmark": "^2.1.1",
